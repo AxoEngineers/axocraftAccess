@@ -1,19 +1,11 @@
 package io.axocraft;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Timer;
 import java.util.logging.Logger;
+import java.util.Iterator;
 
 import net.milkbowl.vault.permission.Permission;
 
@@ -25,6 +17,10 @@ import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.*;
 
 public class axocraftAccess extends JavaPlugin {
 
@@ -44,11 +40,14 @@ public class axocraftAccess extends JavaPlugin {
     private final String PROP_SQL_QUERY_ADD = "sql-query-add";
     private final String PROP_SQL_QUERY_REMOVE = "sql-query-remove";
     private final String FILE_WHITELIST = "whitelist.txt";
+    private final String FILE_WALLETS = "wallets.json";
     private final String FILE_CONFIG = "config.yml";
 
     //Attributes
     private FileWatcher m_Watcher;
+    private FileWatcher m_WatcherWallets;
     private Timer m_Timer;
+    private Timer m_TimerWallets;
     private File m_Folder;
     private boolean m_bWhitelistActive;
     private SQLConnection m_SqlConnection;
@@ -109,10 +108,23 @@ public class axocraftAccess extends JavaPlugin {
                 System.out.println("failed.");
             }
         }
+        File fWallets= new File(m_Folder.getAbsolutePath() + File.separator + FILE_WALLETS);
+        if (!fWallets.exists()) {
+            log.warning(name + " - Wallets lits is missing, creating...");
+            try {
+                fWallets.createNewFile();
+                System.out.println("done.");
+            } catch (IOException ex) {
+                System.out.println("failed.");
+            }
+        }
         //Start file watcher
         m_Watcher = new FileWatcher(fWhitelist);
+        m_WatcherWallets = new FileWatcher(fWallets);
         m_Timer = new Timer(true);
         m_Timer.schedule(m_Watcher, 0, 1000);
+        m_TimerWallets = new Timer(true);
+        m_TimerWallets.schedule(m_WatcherWallets, 0, 1000);
 
         File fConfig = new File(m_Folder.getAbsolutePath() + File.separator + FILE_CONFIG);
         if (!fConfig.exists()) {
@@ -140,6 +152,9 @@ public class axocraftAccess extends JavaPlugin {
         m_Timer.cancel();
         m_Timer.purge();
         m_Timer = null;
+        m_TimerWallets.cancel();
+        m_TimerWallets.purge();
+        m_TimerWallets = null;
         log.info(name + " - disabled!");
     }
 
@@ -220,6 +235,24 @@ public class axocraftAccess extends JavaPlugin {
             sender.sendMessage("Something is wrong!");
             return true;
         }
+    }
+
+    public JSONArray getWalletsForPlayer(String player) throws IOException, ParseException {
+        JSONParser parser = new JSONParser();
+        Object obj = parser.parse(new FileReader(m_Folder.getAbsolutePath() + File.separator + FILE_WALLETS));
+        JSONArray ja = (JSONArray) obj;
+        Iterator itr2 = ja.iterator();
+        while (itr2.hasNext()) {
+            JSONObject item = (JSONObject) parser.parse(itr2.next().toString());
+            Object walletsRaw = item.get(player);
+            if (walletsRaw != null) {
+                JSONArray wallets = (JSONArray) parser.parse(walletsRaw.toString());
+                System.out.println("Got wallets for player: " + player + wallets.toString());
+                return wallets;
+            }
+        }
+        return new JSONArray();
+
     }
 
     public boolean loadWhitelistSettings() {
@@ -397,5 +430,16 @@ public class axocraftAccess extends JavaPlugin {
     public void resetNeedReloadWhitelist() {
         if ( m_Watcher != null )
             m_Watcher.resetFileModifiedState();
+    }
+
+    public boolean needReloadWallets() {
+        if ( m_WatcherWallets != null )
+            return m_WatcherWallets.wasFileModified();
+        return false;
+    }
+
+    public void resetNeedReloadWallets() {
+        if ( m_WatcherWallets != null )
+            m_WatcherWallets.resetFileModifiedState();
     }
 }
