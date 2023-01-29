@@ -1,5 +1,11 @@
 # Axocraft Plugin
-This repository tracks code for customized server-side functionality for the axocraft server.
+This repository tracks code for customized server-side functionality for the axocraft server. It uses both a whitelist and token gating to allow users to access the (java) server.
+
+## License
+All code in this repo is available under the MIT License unless specified otherwise. All code is available as-is. Axolittles takes no risk or responsibility for anyone using this code.
+
+## Community 
+Join our Discord: https://discord.gg/axolittlesnft
 
 ## Build Plugin Jar
 This project uses Maven. I don't really know much about java programming but basically I use 
